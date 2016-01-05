@@ -15,9 +15,11 @@ func TestStringSet(t *testing.T) {
 	b1 := set.Contains([]byte("abc"))
 	b2 := set.Contains([]byte("xd"))
 
-	Convey("random attribute count should equal count", func() {
-		So(b1, ShouldEqual, true)
-		So(b2, ShouldEqual, false)
+	Convey("gofilter test", t, func() {
+		Convey("TestStringSet", func() {
+			So(b1, ShouldEqual, true)
+			So(b2, ShouldEqual, false)
+		})
 	})
 }
 
@@ -31,8 +33,8 @@ func TestTrieFilter(t *testing.T) {
 
 	i, r := filter.Replace([]byte("zzeeabcdefgeffgabc"), byte('*'))
 	allr := filter.FindAll([]byte("zzeeabcdefgeffgabc"))
-	Convey("Subject： TestSelectRandomAttribute", t, func() {
-		Convey("random attribute count should equal count", func() {
+	Convey("gofilter test", t, func() {
+		Convey("TestTrieFilter", func() {
 			So(i, ShouldEqual, 3)
 			So(string(r), ShouldEqual, "zzee*d*effg*")
 			So(len(allr), ShouldEqual, 3)
@@ -47,8 +49,8 @@ func TestTrieFilterLoad(t *testing.T) {
 	filter.LoadMaskFile("maskWord.txt")
 
 	i, r := filter.Replace([]byte("zzeeab毛泽东cdef占领中环geffgabc"), byte('*'))
-	Convey("Subject： TestSelectRandomAttribute", t, func() {
-		Convey("random attribute count should equal count", func() {
+	Convey("gofilter test", t, func() {
+		Convey("TestTrieFilterLoad", func() {
 			So(i, ShouldEqual, 2)
 			So(string(r), ShouldEqual, "zzeeab*cdef*geffgabc")
 		})
@@ -65,8 +67,8 @@ func TestTrieFilterFile(t *testing.T) {
 	t2 := "zzeeab毛泽东cdef占领中环geffgabc"
 	p2 := TrieReplaceBadWord(t2)
 
-	Convey("Subject： TestSelectRandomAttribute", t, func() {
-		Convey("random attribute count should equal count", func() {
+	Convey("gofilter test", t, func() {
+		Convey("TestTrieFilterFile", func() {
 			So(t1, ShouldEqual, p1)
 			So(p2, ShouldEqual, "zzeeab*cdef*geffgabc")
 		})
