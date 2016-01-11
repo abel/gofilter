@@ -79,7 +79,8 @@ const (
 
 type TrieFilter struct {
 	transition [CharCount]byte
-	nodes      [CharCount]*TrieNode
+	root_node  TrieNode //根节点
+	//nodes      [CharCount]*TrieNode
 }
 
 func (filter *TrieFilter) SetFilter(ignoreCase bool, ignoreSimpTrad bool) {
@@ -112,7 +113,7 @@ func (filter *TrieFilter) FindBadWordIndex(text []byte) int {
 	index := 0
 	src := text[index]
 	tranc := filter.transition[src]
-	node := filter.nodes[GetNonzeroByte(tranc, src)]
+	node := filter.root_node.GetValue(GetNonzeroByte(tranc, src))
 	for node != nil {
 		index++
 		if node.end {
@@ -168,24 +169,17 @@ func (filter *TrieFilter) AddReplaceChars(srcChar []byte, replaceChar []byte) {
 //添加关键字
 func (filter *TrieFilter) AddKey(key []byte) {
 	keyLen := len(key)
-	if keyLen > 0 && key[0] != 0 {
-		src := key[0]
+	node := &filter.root_node
+	for i := 0; i < keyLen; i++ {
+		src := key[i]
+		if src == 0 {
+			break
+		}
 		index := GetNonzeroByte(filter.transition[src], src)
-		node := filter.nodes[index]
-		if node == nil {
-			node = new(TrieNode)
-			filter.nodes[index] = node
-		}
-		for i := 1; i < keyLen; i++ {
-			src = key[i]
-			if src == 0 {
-				break
-			}
-			index := GetNonzeroByte(filter.transition[src], src)
-			node = node.GetValueOrNew(index)
-		}
-		node.end = true
+		node = node.GetValueOrNew(index)
 	}
+	node.end = true
+	filter.root_node.end = false
 }
 
 // 存在过滤字
