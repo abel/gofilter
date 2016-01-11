@@ -25,7 +25,7 @@ func (node *TrieNode) increaseCapacity(capacity int32) {
 	//重新设置buckets和next
 	for i := int32(0); i < size; i++ {
 		index := int32(newSlots[i].key) % prime
-		newSlots[i].next = newBuckets[index] - 1
+		newSlots[i].next = newBuckets[index]
 		newBuckets[index] = i + 1
 	}
 	node.slots = newSlots
@@ -43,8 +43,9 @@ func (node *TrieNode) addKey(key byte, trieNode *TrieNode) {
 	curSlot := &node.slots[node.size]
 	curSlot.key = key
 	curSlot.value = trieNode
-	//指向前一个的位置(因为buckets中保存的位置从1开始.而next保存的位置从0开始)
-	curSlot.next = node.buckets[index] - 1
+	//如果有冲突,则指向前一个的位置,如果无冲突,则为无效索引0
+	//(因为buckets中保存的位置从1开始.next保存的位置从1开始)
+	curSlot.next = node.buckets[index]
 	node.size++
 	node.buckets[index] = node.size
 }
@@ -53,8 +54,8 @@ func (node *TrieNode) GetValue(key byte) *TrieNode {
 	if node.slots != nil {
 		var curSlot *TrieSlot
 		index := int32(key) % node.capacity
-		for i := node.buckets[index] - 1; i >= 0; i = curSlot.next {
-			curSlot = &node.slots[i]
+		for i := node.buckets[index]; i > 0; i = curSlot.next {
+			curSlot = &node.slots[i-1]
 			if curSlot.key == key {
 				return curSlot.value
 			}
