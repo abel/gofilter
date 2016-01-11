@@ -110,23 +110,13 @@ func GetNonzeroByte(a byte, b byte) byte {
 // 查找关键字的位置
 func (filter *TrieFilter) FindBadWordIndex(text []byte) int {
 	textLen := len(text)
-	index := 0
-	src := text[index]
-	tranc := filter.transition[src]
-	node := filter.root_node.GetValue(GetNonzeroByte(tranc, src))
-	for node != nil {
-		index++
-		if node.end {
-			return index
-		}
-		if textLen == index {
-			break
-		}
-		src = text[index]
+	node := &filter.root_node
+	for index := 0; index < textLen && node != nil; index++ {
+		src := text[index]
 		if src == 0 {
 			break
 		}
-		tranc = filter.transition[src]
+		tranc := filter.transition[src]
 		if tranc != 0 {
 			nextNode := node.GetValue(tranc)
 			if nextNode != nil {
@@ -140,6 +130,9 @@ func (filter *TrieFilter) FindBadWordIndex(text []byte) int {
 			if nextNode != nil {
 				node = nextNode
 			}
+		}
+		if node.end {
+			return index + 1
 		}
 	}
 	return -1
