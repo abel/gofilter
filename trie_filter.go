@@ -1,76 +1,119 @@
 package gofilter
 
 type TrieSlot struct {
+	end   bool
 	key   byte
 	next  int32
-	value *TrieNode
+	value TrieNode
 }
 
 type TrieNode struct {
-	capacity int32
-	size     int32
-	buckets  []int32
-	slots    []TrieSlot
-	end      bool
+	buckets []int32
+	slots   []TrieSlot
 }
 
-func (node *TrieNode) increaseCapacity(capacity int32) {
-	size := node.size
+// increaseCapacity
+func (self *TrieNode) increaseCapacity(capacity int32) int32 {
+	size := int32(len(self.slots))
 	prime := GetPrimeInt32(capacity)
-	newSlots := make([]TrieSlot, prime, prime)
-	if node.slots != nil {
-		copy(newSlots, node.slots)
-	}
-	newBuckets := make([]int32, prime, prime)
-	//重新设置buckets和next
+	self.buckets = make([]int32, prime, prime)
+	//retset buckets and next
 	for i := int32(0); i < size; i++ {
-		index := int32(newSlots[i].key) % prime
-		newSlots[i].next = newBuckets[index]
-		newBuckets[index] = i + 1
+		index := int32(self.slots[i].key) % prime
+		self.slots[i].next = self.buckets[index]
+		self.buckets[index] = i + 1
 	}
-	node.slots = newSlots
-	node.buckets = newBuckets
-	node.capacity = prime
+	return prime
 }
 
-func (node *TrieNode) addKey(key byte, trieNode *TrieNode) {
-	//容量因子(1:1.5 = 67%)
-	cp := node.size + (node.size >> 1)
-	if node.capacity <= cp {
-		node.increaseCapacity(cp)
-	}
-	index := int32(key) % node.capacity
-	curSlot := &node.slots[node.size]
-	curSlot.key = key
-	curSlot.value = trieNode
-	//如果有冲突,则指向前一个的位置,如果无冲突,则为无效索引0
-	//(因为buckets中保存的位置从1开始.next保存的位置从1开始)
-	curSlot.next = node.buckets[index]
-	node.size++
-	node.buckets[index] = node.size
-}
-
-func (node *TrieNode) GetValue(key byte) *TrieNode {
-	if node.slots != nil {
-		var curSlot *TrieSlot
-		index := int32(key) % node.capacity
-		for i := node.buckets[index]; i > 0; i = curSlot.next {
-			curSlot = &node.slots[i-1]
-			if curSlot.key == key {
-				return curSlot.value
+// getNodeIndex 1: first index, 0: not find
+func (self *TrieNode) getNodeIndex(key byte) int32 {
+	capacity := len(self.buckets)
+	if capacity > 0 {
+		size := int32(len(self.slots))
+		index := int(key) % capacity
+		i := self.buckets[index]
+		for i > 0 && i <= size {
+			i--
+			if self.slots[i].key == key {
+				return i + 1
 			}
+			i = self.slots[i].next
 		}
 	}
-	return nil
+	return 0
 }
 
-func (node *TrieNode) GetValueOrNew(key byte) *TrieNode {
-	trieNode := node.GetValue(key)
-	if trieNode == nil {
-		trieNode = new(TrieNode)
-		node.addKey(key, trieNode)
+func (self *TrieNode) addChar(key byte) {
+	//(1:1.5 = 67%)
+	size := int32(len(self.slots))
+	capacity := int32(len(self.buckets))
+	cp := size + (size >> 1)
+	if capacity <= cp {
+		capacity = self.increaseCapacity(cp)
 	}
-	return trieNode
+	index := int32(key) % capacity
+	//如果有冲突,则指向前一个的位置,如果无冲突,则为无效索引0
+	//(因为buckets中保存的位置从1开始.next保存的位置从1开始)
+	next := self.buckets[index]
+	self.slots = append(self.slots, TrieSlot{key: key, next: next})
+	self.buckets[index] = 1 + size
+}
+
+func (self *TrieNode) AddKeyword(keys []byte, trans []byte) {
+	key_len := len(keys)
+	if key_len == 0 {
+		return
+	}
+	key := keys[0]
+	if key == 0 {
+		return
+	}
+	tran := trans[key]
+	if tran != 0 {
+		key = tran
+	}
+	i := self.getNodeIndex(key)
+	if i == 0 {
+		self.addChar(key)
+		i = int32(len(self.slots))
+	}
+	i--
+	if key_len == 1 {
+		self.slots[i].end = true
+		return
+	}
+	self.slots[i].value.AddKeyword(keys[1:], trans)
+}
+
+func (self *TrieNode) ExistKeyword(keys []byte, trans []byte) (find bool, depth int) {
+	key_len := len(keys)
+	if key_len == 0 {
+		return false, 0
+	}
+	key := keys[0]
+	tran := trans[key]
+	var ignore bool
+	if tran == 0 {
+		ignore = true
+	} else {
+		ignore = false
+		key = tran
+	}
+	i := self.getNodeIndex(key)
+	if i == 0 {
+		if ignore {
+			find, depth = self.ExistKeyword(keys[1:], trans)
+		}
+	} else {
+		if self.slots[i-1].end {
+			find = true
+		} else {
+			find, depth = self.slots[i-1].value.ExistKeyword(keys[1:], trans)
+		}
+	}
+	depth++
+	return
 }
 
 const (
@@ -79,75 +122,31 @@ const (
 
 type TrieFilter struct {
 	transition [CharCount]byte
-	root_node  TrieNode //根节点
-	//nodes      [CharCount]*TrieNode
+	rootNode   TrieNode
 }
 
-func (filter *TrieFilter) SetFilter(ignoreCase bool, ignoreSimpTrad bool) {
+// SetFilter
+func (self *TrieFilter) SetFilter(ignoreCase bool) {
 	for i := 0; i < CharCount; i++ {
-		filter.transition[i] = byte(i)
+		self.transition[i] = byte(i)
 	}
-	//将小写转为大写字母
 	if ignoreCase {
 		for a := 'a'; a <= 'z'; a++ {
-			filter.transition[a] = byte(a) - 32 //(a:97,A:65);
+			self.transition[a] = byte(a) - 32 //(a:97,A:65);
 		}
 	}
-	//简繁转换.暂未实现
-	//if (ignoreSimpTrad)
-	//{
-	//	AddReplaceChars(zh_TW, zh_CN);
-	//}
 }
 
-func GetNonzeroByte(a byte, b byte) byte {
-	if a != 0 {
-		return a
-	}
-	return b
-}
-
-// 查找关键字的位置
-func (filter *TrieFilter) FindBadWordIndex(text []byte) int {
-	textLen := len(text)
-	node := &filter.root_node
-	for index := 0; index < textLen && node != nil; index++ {
-		src := text[index]
-		if src == 0 {
-			break
-		}
-		tranc := filter.transition[src]
-		if tranc != 0 {
-			nextNode := node.GetValue(tranc)
-			if nextNode != nil {
-				node = nextNode
-			} else {
-				break
-			}
-		} else {
-			//被忽略的字符.使用原始值再次查找
-			nextNode := node.GetValue(src)
-			if nextNode != nil {
-				node = nextNode
-			}
-		}
-		if node.end {
-			return index + 1
-		}
-	}
-	return -1
-}
-
-//增加忽略字符
-func (filter *TrieFilter) AddIgnoreChars(passChars []byte) {
+// AddIgnoreChars
+func (self *TrieFilter) AddIgnoreChars(passChars []byte) {
 	for i := 0; i < len(passChars); i++ {
 		src := passChars[i]
-		filter.transition[src] = 0
+		self.transition[src] = 0
 	}
 }
 
-//增加替换字符
-func (filter *TrieFilter) AddReplaceChars(srcChar []byte, replaceChar []byte) {
+// AddReplaceChars
+func (self *TrieFilter) AddReplaceChars(srcChar []byte, replaceChar []byte) {
 	count := len(srcChar)
 	if count > len(replaceChar) {
 		count = len(replaceChar)
@@ -155,30 +154,34 @@ func (filter *TrieFilter) AddReplaceChars(srcChar []byte, replaceChar []byte) {
 	for i := 0; i < count; i++ {
 		src := srcChar[i]
 		rep := replaceChar[i]
-		filter.transition[src] = rep
+		self.transition[src] = rep
 	}
 }
 
-//添加关键字
-func (filter *TrieFilter) AddKey(key []byte) {
-	keyLen := len(key)
-	node := &filter.root_node
-	for i := 0; i < keyLen; i++ {
-		src := key[i]
-		if src == 0 {
-			break
-		}
-		index := GetNonzeroByte(filter.transition[src], src)
-		node = node.GetValueOrNew(index)
-	}
-	node.end = true
-	filter.root_node.end = false
+// AddKey
+func (self *TrieFilter) AddKey(key string) {
+	self.rootNode.AddKeyword([]byte(key), self.transition[:])
 }
 
-// 存在过滤字
-func (filter *TrieFilter) HasBadWord(text []byte) bool {
+// AddKeyword
+func (self *TrieFilter) AddKeyword(key []byte) {
+	self.rootNode.AddKeyword(key, self.transition[:])
+}
+
+// findKeywordIndex
+func (self *TrieFilter) findKeywordIndex(text []byte) int {
+	found, depth := self.rootNode.ExistKeyword(text, self.transition[:])
+	if found {
+		return depth
+	} else {
+		return 0
+	}
+}
+
+// ExistKeyword
+func (self *TrieFilter) ExistKeyword(text []byte) bool {
 	for i := 0; i < len(text); i++ {
-		index := filter.FindBadWordIndex(text[i:])
+		index := self.findKeywordIndex(text[i:])
 		if index > 0 {
 			return true
 		}
@@ -186,10 +189,10 @@ func (filter *TrieFilter) HasBadWord(text []byte) bool {
 	return false
 }
 
-//查找1个
-func (filter *TrieFilter) FindOne(text []byte) []byte {
+// FindOne
+func (self *TrieFilter) FindOne(text []byte) []byte {
 	for i := 0; i < len(text); i++ {
-		index := filter.FindBadWordIndex(text[i:])
+		index := self.findKeywordIndex(text[i:])
 		if index > 0 {
 			return text[i : i+index]
 		}
@@ -197,10 +200,11 @@ func (filter *TrieFilter) FindOne(text []byte) []byte {
 	return nil
 }
 
-func (filter *TrieFilter) FindAll(text []byte) [][]byte {
+// FindAll
+func (self *TrieFilter) FindAll(text []byte) [][]byte {
 	var r [][]byte
 	for i := 0; i < len(text); i++ {
-		index := filter.FindBadWordIndex(text[i:])
+		index := self.findKeywordIndex(text[i:])
 		if index > 0 {
 			r = append(r, text[i:i+index])
 			i += (index - 1)
@@ -209,12 +213,13 @@ func (filter *TrieFilter) FindAll(text []byte) [][]byte {
 	return r
 }
 
-func (filter *TrieFilter) Replace(text []byte, mask byte) (int, []byte) {
+// Replace
+func (self *TrieFilter) Replace(text []byte, mask byte) (int, []byte) {
 	textLen := len(text)
 	var outbuffer []byte
 	findCount := 0
 	for i := 0; i < len(text); i++ {
-		index := filter.FindBadWordIndex(text[i:])
+		index := self.findKeywordIndex(text[i:])
 		if index > 0 {
 			if findCount == 0 {
 				outbuffer = make([]byte, 0, textLen)

@@ -26,17 +26,19 @@ func IsPrime(candidate int) bool {
 }
 
 func GetPrime(min int) int {
-	for _, num2 := range primes {
-		if num2 >= min {
-			return num2
+	//在已知数据中查找
+	for _, p := range primes {
+		if p >= min {
+			return p
 		}
 	}
+	//通过计算获得
 	for i := min | 1; i < 0x7fffffff; i += 2 {
 		if IsPrime(i) {
 			return i
 		}
 	}
-	return min
+	return 0
 }
 
 func GetPrimeInt32(min int32) int32 {

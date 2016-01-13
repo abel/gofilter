@@ -25,11 +25,11 @@ func TestStringSet(t *testing.T) {
 
 func TestTrieFilter(t *testing.T) {
 	filter := TrieFilter{}
-	filter.SetFilter(true, true)
+	filter.SetFilter(true)
 
 	filter.LoadMaskFile("maskWord.txt")
-	filter.AddKey([]byte("abc"))
-	filter.AddKey([]byte("efg"))
+	filter.AddKey("abc")
+	filter.AddKey("efg")
 
 	i, r := filter.Replace([]byte("zzeeabcdefgeffgabc"), byte('*'))
 	allr := filter.FindAll([]byte("zzeeabcdefgeffgabc"))
@@ -44,7 +44,7 @@ func TestTrieFilter(t *testing.T) {
 
 func TestTrieFilterLoad(t *testing.T) {
 	filter := TrieFilter{}
-	filter.SetFilter(true, true)
+	filter.SetFilter(true)
 
 	filter.LoadMaskFile("maskWord.txt")
 

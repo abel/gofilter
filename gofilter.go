@@ -10,8 +10,8 @@ var (
 )
 
 func init() {
-	trie.SetFilter(true, true)
-	trie_name.SetFilter(true, true)
+	trie.SetFilter(true)
+	trie_name.SetFilter(false)
 }
 
 func (filter *TrieFilter) LoadMaskFile(path string) bool {
@@ -23,7 +23,7 @@ func (filter *TrieFilter) LoadMaskFile(path string) bool {
 	size := 0
 	for i := 0; i < len(content); i++ {
 		if content[i] == 0x0A {
-			filter.AddKey(content[index : index+size])
+			filter.AddKeyword(content[index : index+size])
 			size = 0
 			index = i + 1
 		} else {
@@ -31,7 +31,7 @@ func (filter *TrieFilter) LoadMaskFile(path string) bool {
 		}
 	}
 	if size > 0 && index < len(content) {
-		filter.AddKey(content[index : index+size])
+		filter.AddKeyword(content[index : index+size])
 	}
 	return true
 }
@@ -46,12 +46,12 @@ func LoadMaskNameFile(path string) {
 }
 
 func TrieHasBadWord(text string) bool {
-	return trie.HasBadWord([]byte(text))
+	return trie.ExistKeyword([]byte(text))
 }
 
 func TrieHasBadName(text string) bool {
 	t := []byte(text)
-	return trie.HasBadWord(t) || trie_name.HasBadWord(t)
+	return trie.ExistKeyword(t) || trie_name.ExistKeyword(t)
 }
 
 func TrieReplaceBadWord(text string) string {
