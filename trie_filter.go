@@ -14,10 +14,10 @@ type TrieNode struct {
 
 // increaseCapacity
 func (self *TrieNode) increaseCapacity(capacity int32) int32 {
-	size := int32(len(self.slots))
 	prime := GetPrimeInt32(capacity)
 	self.buckets = make([]int32, prime, prime)
 	//retset buckets and next
+	size := int32(len(self.slots))
 	for i := int32(0); i < size; i++ {
 		index := int32(self.slots[i].key) % prime
 		self.slots[i].next = self.buckets[index]
