@@ -45,16 +45,16 @@ func LoadMaskNameFile(path string) {
 	trie_name.LoadMaskFile(path)
 }
 
-func TrieHasBadWord(text string) bool {
+func HasBadWord(text string) bool {
 	return trie.ExistKeyword([]byte(text))
 }
 
-func TrieHasBadName(text string) bool {
+func HasBadName(text string) bool {
 	t := []byte(text)
 	return trie.ExistKeyword(t) || trie_name.ExistKeyword(t)
 }
 
-func TrieReplaceBadWord(text string) string {
+func ReplaceBadWord(text string) string {
 	count, outbuffer := trie.Replace([]byte(text), '*')
 	if count == 0 {
 		return text
